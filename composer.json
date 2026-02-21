@@ -3,6 +3,12 @@
   "description": "DevPulse PHP SDK — core error capture and transport",
   "type": "library",
   "license": "MIT",
+  "authors": [
+    {
+      "name": "SekolahCode",
+      "homepage": "https://github.com/SekolahCode"
+    }
+  ],
   "autoload": {
     "psr-4": {
       "DevPulse\\": "src/"
