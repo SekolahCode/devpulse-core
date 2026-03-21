@@ -51,7 +51,17 @@ class Transport
 
         restore_error_handler();
 
-        return $result !== false;
+        if ($result === false) return false;
+
+        // Check HTTP status — ignore_errors keeps the body but we still want to
+        // surface 4xx/5xx as failures so callers know the event wasn't accepted.
+        $statusLine = $http_response_header[0] ?? '';
+        if (preg_match('/HTTP\/\S+\s+(\d+)/', $statusLine, $m)) {
+            $status = (int) $m[1];
+            if ($status < 200 || $status >= 300) return false;
+        }
+
+        return true;
     }
 
     private function fireAndForget(string $json): bool
@@ -66,8 +76,13 @@ class Transport
         $path   = $parts['path'] ?? '/';
         $length = strlen($json);
 
-        // Prefix host with ssl:// for HTTPS connections
-        $socketHost = $isHttps ? "ssl://{$parts['host']}" : $parts['host'];
+        $socketAddr = ($isHttps ? 'ssl' : 'tcp') . "://{$parts['host']}:{$port}";
+        $context    = stream_context_create([
+            'ssl' => [
+                'verify_peer'      => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
 
         $request = "POST {$path} HTTP/1.1\r\n"
             . "Host: {$parts['host']}\r\n"
@@ -77,7 +92,7 @@ class Transport
             . $json;
 
         // Open socket but don't wait for response
-        $fp = fsockopen($socketHost, $port, $errno, $errstr, 1);
+        $fp = stream_socket_client($socketAddr, $errno, $errstr, 1, STREAM_CLIENT_CONNECT, $context);
         if (!$fp) return false;
 
         stream_set_timeout($fp, 1);
