@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'devpulse/core',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '394182a6b3e2cdaa969b873fcc0cc7ecb4e3ead2',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'devpulse/core' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '394182a6b3e2cdaa969b873fcc0cc7ecb4e3ead2',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
