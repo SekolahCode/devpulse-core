@@ -18,7 +18,7 @@ class Transport
     public function send(Payload $payload): bool
     {
         $json = json_encode($payload->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        if (!$json) return false;
+        if ($json === false) return false;
 
         // Async — fire and forget, don't block the request
         if ($this->async && PHP_SAPI !== 'cli') {
@@ -70,10 +70,11 @@ class Transport
         $parts = parse_url($this->dsn);
         if (!$parts || empty($parts['host'])) return false;
 
-        $scheme = $parts['scheme'] ?? 'http';
+        $scheme  = $parts['scheme'] ?? 'http';
         $isHttps = $scheme === 'https';
-        $port   = $parts['port'] ?? ($isHttps ? 443 : 80);
-        $path   = $parts['path'] ?? '/';
+        $port    = $parts['port'] ?? ($isHttps ? 443 : 80);
+        $query   = isset($parts['query']) ? '?' . $parts['query'] : '';
+        $path    = ($parts['path'] ?? '/') . $query;
         $length = strlen($json);
 
         $socketAddr = ($isHttps ? 'ssl' : 'tcp') . "://{$parts['host']}:{$port}";

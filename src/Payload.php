@@ -79,17 +79,21 @@ class Payload
     {
         if (!$file || !$line || !file_exists($file)) return null;
 
-        $source = file($file, FILE_IGNORE_NEW_LINES);
-        if (!$source) return null;
+        try {
+            $spl   = new \SplFileObject($file);
+            $start = max(0, $line - $lines - 1);
+            $spl->seek($start);
 
-        $start = max(0, $line - $lines - 1);
-        $end   = min(count($source), $line + $lines - 1);
-        $slice = array_slice($source, $start, $end - $start, true);
+            $slice = [];
+            for ($i = $start; $i < $line + $lines && !$spl->eof(); $i++) {
+                $slice[$i + 1] = rtrim((string) $spl->current());
+                $spl->next();
+            }
+        } catch (\RuntimeException $e) {
+            return null;
+        }
 
-        return [
-            'start' => $start + 1,
-            'lines' => $slice,
-        ];
+        return $slice !== [] ? ['start' => $start + 1, 'lines' => $slice] : null;
     }
 
     /** @return array{php: string, os: string, sapi: string, memory: int} */
@@ -116,9 +120,30 @@ class Payload
                 . '://' . self::serverString('HTTP_HOST', 'localhost')
                 . self::serverString('REQUEST_URI', '/'),
             'method'  => self::serverString('REQUEST_METHOD', 'GET'),
-            'ip'      => isset($_SERVER['REMOTE_ADDR']) ? self::serverString('REMOTE_ADDR') : null,
+            'ip'      => self::resolveClientIp(),
             'headers' => self::safeHeaders(),
         ];
+    }
+
+    /**
+     * Resolve the real client IP, accounting for reverse proxies and CDNs.
+     *
+     * Checks X-Forwarded-For → X-Real-IP → REMOTE_ADDR in order.
+     * The first valid IP in X-Forwarded-For is the original client.
+     */
+    private static function resolveClientIp(): ?string
+    {
+        foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'] as $key) {
+            if (empty($_SERVER[$key])) continue;
+
+            $ip = trim(explode(',', self::serverString($key))[0]);
+
+            if (filter_var($ip, FILTER_VALIDATE_IP) !== false) {
+                return $ip;
+            }
+        }
+
+        return null;
     }
 
     /** Safely reads a string value from $_SERVER with a fallback default. */

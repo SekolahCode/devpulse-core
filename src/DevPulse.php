@@ -14,14 +14,15 @@ class DevPulse
     }
 
     /** @param array<string, mixed> $extra */
-    public static function capture(\Throwable $e, array $extra = []): void
+    public static function capture(\Throwable $e, array $extra = []): bool
     {
-        self::$client?->captureException($e, $extra);
+        return self::$client?->captureException($e, $extra) ?? false;
     }
 
-    public static function captureMessage(string $message, string $level = 'info'): void
+    /** @param array<string, mixed> $extra */
+    public static function captureMessage(string $message, string $level = 'info', array $extra = []): bool
     {
-        self::$client?->captureMessage($message, $level);
+        return self::$client?->captureMessage($message, $level, $extra) ?? false;
     }
 
     public static function getClient(): ?Client

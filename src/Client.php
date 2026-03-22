@@ -25,15 +25,13 @@ class Client
 
         $this->validateConfig();
 
-        // After validateConfig(), dsn is guaranteed to be a valid URL string.
-        // timeout and async are expected to be int/bool — assert narrows types for PHPStan.
-        $dsn     = $this->config['dsn'];
+        // validateConfig() guarantees these types — no assertions needed.
+        /** @var string $dsn */
+        $dsn = $this->config['dsn'];
+        /** @var int $timeout */
         $timeout = $this->config['timeout'];
-        $async   = $this->config['async'];
-
-        assert(is_string($dsn));
-        assert(is_int($timeout));
-        assert(is_bool($async));
+        /** @var bool $async */
+        $async = $this->config['async'];
 
         $this->transport = new Transport($dsn, $timeout, $async);
     }
@@ -49,6 +47,15 @@ class Client
         if (!filter_var($dsn, FILTER_VALIDATE_URL)) {
             throw new Exceptions\DevPulseException("DevPulse DSN is not a valid URL: \"{$dsn}\"");
         }
+
+        $timeout = $this->config['timeout'];
+        if (!is_int($timeout) || $timeout < 1) {
+            throw new Exceptions\DevPulseException('timeout must be a positive integer.');
+        }
+
+        if (!is_bool($this->config['async'])) {
+            throw new Exceptions\DevPulseException('async must be a boolean.');
+        }
     }
 
     public function register(): void
@@ -63,9 +70,9 @@ class Client
     }
 
     /** @param array<string, mixed> $extra */
-    public function captureException(\Throwable $e, array $extra = []): void
+    public function captureException(\Throwable $e, array $extra = []): bool
     {
-        if (!$this->config['enabled']) return;
+        if (!$this->config['enabled']) return false;
 
         // Merge config keys into $extra before passing — Payload::fromThrowable merges
         // $extra first, so library-controlled keys (environment, release) always win.
@@ -74,20 +81,20 @@ class Client
             'release'     => $this->config['release'],
         ]));
 
-        $this->transport->send($payload);
+        return $this->transport->send($payload);
     }
 
     /** @param array<string, mixed> $extra */
-    public function captureMessage(string $message, string $level = 'info', array $extra = []): void
+    public function captureMessage(string $message, string $level = 'info', array $extra = []): bool
     {
-        if (!$this->config['enabled']) return;
+        if (!$this->config['enabled']) return false;
 
         $payload = Payload::fromMessage($message, $level, array_merge($extra, [
             'environment' => $this->config['environment'],
             'release'     => $this->config['release'],
         ]));
 
-        $this->transport->send($payload);
+        return $this->transport->send($payload);
     }
 
     // Called by set_error_handler
@@ -107,7 +114,7 @@ class Client
         if (!$error) return;
 
         $fatals = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
-        if (!in_array($error['type'], $fatals)) return;
+        if (!in_array($error['type'], $fatals, true)) return;
 
         $this->captureException(
             new \ErrorException($error['message'], 0, $error['type'], $error['file'], $error['line'])
