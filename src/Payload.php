@@ -86,7 +86,8 @@ class Payload
 
             $slice = [];
             for ($i = $start; $i < $line + $lines && !$spl->eof(); $i++) {
-                $slice[$i + 1] = rtrim((string) $spl->current());
+                $raw = $spl->current();
+                $slice[$i + 1] = is_string($raw) ? rtrim($raw) : '';
                 $spl->next();
             }
         } catch (\RuntimeException $e) {

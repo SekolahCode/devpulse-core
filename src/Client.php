@@ -62,7 +62,7 @@ class Client
     {
         if ($this->registered || !$this->config['enabled']) return;
 
-        set_exception_handler([$this, 'captureException']);
+        set_exception_handler(function (\Throwable $e): void { $this->captureException($e); });
         set_error_handler([$this, 'captureError']);
         register_shutdown_function([$this, 'captureShutdown']);
 
