@@ -58,14 +58,17 @@ class Payload
         ];
 
         foreach ($e->getTrace() as $frame) {
+            $file = $frame['file'] ?? null;
+            $line = $frame['line'] ?? null;
             $frames[] = [
-                'file'     => $frame['file'] ?? null,
-                'line'     => $frame['line'] ?? null,
+                'file'     => $file,
+                'line'     => $line,
                 // 'type' (?? '') handles frames without a class separator (plain functions)
                 'function' => isset($frame['class'])
                     ? $frame['class'] . ($frame['type'] ?? '') . $frame['function']
                     : $frame['function'],
                 'args'     => [],   // intentionally empty — avoid leaking sensitive data
+                'context'  => self::readSourceContext($file, $line),
             ];
         }
 
