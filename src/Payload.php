@@ -126,6 +126,7 @@ class Payload
             'method'  => self::serverString('REQUEST_METHOD', 'GET'),
             'ip'      => self::resolveClientIp(),
             'headers' => self::safeHeaders(),
+            'body'    => self::safeRequestBody(),
         ];
     }
 
@@ -155,6 +156,20 @@ class Payload
     {
         $value = $_SERVER[$key] ?? $default;
         return is_string($value) ? $value : $default;
+    }
+
+    /**
+     * Capture the request body as decoded JSON (max 64 KB).
+     * Returns null for non-JSON, CLI, or oversized bodies.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function safeRequestBody(): ?array
+    {
+        $raw = (string) file_get_contents('php://input');
+        if ($raw === '' || strlen($raw) > 65_536) return null;
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : null;
     }
 
     /** @return array<string, string> */
