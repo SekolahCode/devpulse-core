@@ -4,15 +4,29 @@ namespace DevPulse;
 
 class Transport
 {
-    private string $dsn;
+    private string $endpoint;
+    private string $apiKey;
     private int    $timeout;
     private bool   $async;
 
     public function __construct(string $dsn, int $timeout = 2, bool $async = true)
     {
-        $this->dsn     = $dsn;
+        // DSN format: https://<host>/api/ingest/<api_key>
+        // Extract the key so it is sent as X-API-Key header rather than in the URL,
+        // preventing leakage in server access logs and CDN logs.
+        [$this->endpoint, $this->apiKey] = self::parseDsn($dsn);
         $this->timeout = $timeout;
         $this->async   = $async;
+    }
+
+    /**
+     * @return array{string, string} [endpoint, apiKey]
+     */
+    private static function parseDsn(string $dsn): array
+    {
+        $parts  = explode('/', rtrim($dsn, '/'));
+        $apiKey = array_pop($parts);
+        return [implode('/', $parts), $apiKey];
     }
 
     public function send(Payload $payload): bool
@@ -25,13 +39,14 @@ class Transport
         // fastcgi_finish_request() (PHP-FPM) flushes the response buffer first,
         // then we do a normal sync send. The user sees no added latency.
         if ($this->async && PHP_SAPI !== 'cli') {
-            $dsn     = $this->dsn;
-            $timeout = $this->timeout;
-            register_shutdown_function(static function () use ($json, $dsn, $timeout): void {
+            $endpoint = $this->endpoint;
+            $apiKey   = $this->apiKey;
+            $timeout  = $this->timeout;
+            register_shutdown_function(static function () use ($json, $endpoint, $apiKey, $timeout): void {
                 if (function_exists('fastcgi_finish_request')) {
                     fastcgi_finish_request();
                 }
-                (new self($dsn, $timeout, false))->sendSync($json);
+                (new self("{$endpoint}/{$apiKey}", $timeout, false))->sendSync($json);
             });
             return true;
         }
@@ -44,7 +59,7 @@ class Transport
         $context = stream_context_create([
             'http' => [
                 'method'        => 'POST',
-                'header'        => "Content-Type: application/json\r\n",
+                'header'        => "Content-Type: application/json\r\nX-API-Key: {$this->apiKey}\r\n",
                 'content'       => $json,
                 'timeout'       => $this->timeout,
                 'ignore_errors' => true,
@@ -58,7 +73,7 @@ class Transport
             return true;
         });
 
-        $result = file_get_contents($this->dsn, false, $context);
+        $result = file_get_contents($this->endpoint, false, $context);
 
         restore_error_handler();
 
