@@ -4,6 +4,8 @@ namespace DevPulse;
 
 class Payload
 {
+    private const SDK_VERSION = 'devpulse-php/2.0.0';
+
     /** @param array<string, mixed> $data */
     private function __construct(private readonly array $data) {}
 
@@ -18,16 +20,17 @@ class Payload
     {
         // $extra is merged first so library-controlled keys (level, timestamp, etc.) always win
         return new self(array_merge($extra, [
-            'level'     => 'error',
-            'exception' => [
+            'level'       => 'error',
+            'exception'   => [
                 'type'       => get_class($e),
                 'message'    => $e->getMessage(),
                 'code'       => $e->getCode(),
                 'stacktrace' => self::buildStacktrace($e),
             ],
-            'context'   => self::buildContext(),
-            'request'   => self::buildRequest(),
-            'timestamp' => gmdate('c'),
+            'context'     => self::buildContext(),
+            'request'     => self::buildRequest(),
+            'sdk_version' => self::SDK_VERSION,
+            'timestamp'   => gmdate('c'),
         ]));
     }
 
@@ -36,11 +39,12 @@ class Payload
     {
         // $extra is merged first so library-controlled keys always win
         return new self(array_merge($extra, [
-            'level'     => $level,
-            'message'   => $message,
-            'context'   => self::buildContext(),
-            'request'   => self::buildRequest(),
-            'timestamp' => gmdate('c'),
+            'level'       => $level,
+            'message'     => $message,
+            'context'     => self::buildContext(),
+            'request'     => self::buildRequest(),
+            'sdk_version' => self::SDK_VERSION,
+            'timestamp'   => gmdate('c'),
         ]));
     }
 
